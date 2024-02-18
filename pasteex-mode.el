@@ -153,7 +153,18 @@
   (unless (buffer-file-name)
     (user-error "Current buffer is not related to any file."))
   ;; make img dir if not exists
-  (setq img-dir (concat (file-name-directory (buffer-file-name)) pasteex-image-dir))
+  
+  ;; (setq img-dir (concat (file-name-directory (buffer-file-name)) pasteex-image-dir))
+  
+  ;; MODIFY
+  (setq img-dir (if (string-equal major-mode "dokuwiki-mode")
+                    (concat (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) "/")
+                    (concat (file-name-directory (buffer-file-name)) (file-name-nondirectory (buffer-file-name)) "/")
+                    (concat (file-name-directory (buffer-file-name)) pasteex-image-dir)))
+
+  (message "img-dir: %s" img-dir)
+  
+  
   (unless (file-directory-p img-dir)
     (make-directory img-dir))
   
@@ -179,7 +190,24 @@
     (shell-command shell-command-str)
     )
   
-  (setq relative-img-file-path (concat "./" pasteex-image-dir img-file-name))
+  ;; (setq relative-img-file-path (concat "./" pasteex-image-dir img-file-name))
+  
+  ;; modify
+  (setq relative-img-file-path (if (string-equal major-mode "dokuwiki-mode")
+                                   (concat "./" (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) "/" img-file-name)
+                                   (concat "./" pasteex-image-dir img-file-name)))
+
+  
+  (message "img-file-name: %s" img-file-name)
+  (message "relative-img-file-path: %s" relative-img-file-path)
+  
+  
+  
+  
+  
+  
+  
+  
   ;; check is png file or not
   (unless (pasteex-is-png-file relative-img-file-path)
     ;; delete the generated file
@@ -194,6 +222,7 @@
   "Build image file path that to insert to current point."
   (cond
    ((string-equal major-mode "markdown-mode") (format "![%s](%s)" display-name file-path))
+   ((string-equal major-mode "dokuwiki-mode") (format "{{.\\%s}}" (file-name-nondirectory file-path)))
    ((string-equal major-mode "gfm-mode") (format "![%s](%s)" display-name file-path))
    ((string-equal major-mode "org-mode") (progn
 					   (if (string-empty-p display-name)
@@ -222,8 +251,16 @@
   ;; the line content
   (setq line-str (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
   ;; parse image file paths
-  (while (string-match (concat "\\./" pasteex-image-dir ".+?\\.png") line-str)
-    (setq img-file-path (match-string 0 line-str))
+  (while (string-match (if (string-equal major-mode "dokuwiki-mode")
+                          (concat "\\.[/\\\\]" ".+?\\.png")
+                          (concat "\\./" pasteex-image-dir ".+?\\.png"))
+                      line-str)
+    (setq img-file-path (if (string-equal major-mode "dokuwiki-mode")
+                        (concat (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) "/" (substring (match-string 0 line-str) 2))
+                        (match-string 0 line-str)))
+    
+    (message "img-file-path: %s" img-file-path)
+    
     ;; delete image file on disk
     (if (file-exists-p img-file-path)
         (progn
